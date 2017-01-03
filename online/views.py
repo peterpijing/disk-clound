@@ -8,7 +8,8 @@ from forms import UserForm, ModifyForm, ValidateForm, FolderForm, FileForm, User
 from django.core.mail import send_mail
 import random, string
 from easymethod import change_password
-from django.core.servers.basehttp import FileWrapper
+# from django.core.servers.basehttp import FileWrapper
+from wsgiref.util import FileWrapper
 from django.utils import timezone
 import os, datetime, sys
 
@@ -29,7 +30,7 @@ def regist(req):
 
             if User.objects.filter(username=username):
                   errors1.append('用户名已经存在，请换一个啦')
-                  return render_to_response('index2.html', {'errors1': errors1}, context_instance=RequestContext(req))
+                  return render(req,'index2.html', {'errors1': errors1})
             else:
                   User.objects.create(username=username, password=password)
                   f = User.objects.get(username=username)
@@ -37,10 +38,10 @@ def regist(req):
                   modify_time = timezone.now()
                   f.userinfo_set.create(email=email, tel='8888888', address='default')
                   f.folder_set.create(folder_name='默认文件夹', create_time=create_time, modify_time=modify_time)
-                  return render_to_response('index2.html',  context_instance=RequestContext(req))
+                  return render(req,'index2.html')
     else:
         uf = UserForm()
-    return render_to_response('index2.html', {'uf': uf}, context_instance=RequestContext(req))
+    return render(req,'index2.html', {'uf': uf})
 
 def login(req):
     if req.method == 'POST':
@@ -57,15 +58,17 @@ def login(req):
             return response
         else:
             message = '用户名不存在或密码错误'
-            return render_to_response('index2.html', {'message': message}, context_instance=RequestContext(req))
+            return render(req,'index2.html', {'message': message})
     else:
         uf = UserFormlog()
-    return render_to_response('index2.html', context_instance=RequestContext(req))
+    return render(req,'index2.html')
 
 def index(req, s=''):
     username = req.COOKIES.get('username', '')
     a = User.objects.get(username=username)
     b = a.folder_set.all()
+
+    b = list(b)
     if req.method == 'POST':
         if req.POST.has_key('s_thread'):
             filename = req.POST.get('s_thread')
@@ -76,12 +79,16 @@ def index(req, s=''):
             response['Content-Encoding'] = 'utf-8'
             response['Content-Disposition'] = 'attachment;filename=%s' % filename
             return response
+
+ #删除上传的文件
         elif req.POST.has_key('s_delete'):
             file_loc = req.POST.get('s_delete')
             try:
                 os.remove(file_loc)
-            except WindowsError:
+            except Exception as e:
                 pass
+            s = '文件夹1'
+
             f = Folder.objects.get(folder_name=s)
             c = f.file_set.filter(file_loc=file_loc)
             c.delete()
@@ -153,21 +160,27 @@ def validate(req):
             if cmp(message1, validate2):
                 message.append(u'验证码错误！')
 
-                return render_to_response('modify_new.html', {'message': message, 'user_pass': user_pass}, context_instance=RequestContext(req))
+                return render(req,'modify_new.html', {'message': message, 'user_pass': user_pass})
             else:
                 change_password(username, newpasswd)
                 message.append(u'密码修改成功了！请返回登陆首页。')
 
-                return render_to_response('modify_new.html', {'message': message, 'user_pass': user_pass}, context_instance=RequestContext(req))
+                return render(req,'modify_new.html', {'message': message, 'user_pass': user_pass})
     else:
         vf = ValidateForm()
-    return render_to_response('modify_new.html', {'user_pass': user_pass}, context_instance=RequestContext(req))
+    return render(req,'modify_new.html', {'user_pass': user_pass})
 
-def upload(req):
+def upload(req,s=''):
     up_files = 'yes'
     if req.method == "POST":
         ff = FileForm(req.POST, req.FILES)
-        folder_name = req.session.get('folder_name')
+
+        a = User.objects.get(username='admin')
+        b = a.folder_set.all()
+        b = list(b)
+        folder_name = b[0].folder_name
+        print folder_name
+
         if ff.is_valid():
             #获取表单数据
             b = ' Byte'
@@ -181,6 +194,7 @@ def upload(req):
             #写入数据库
             upload_time = timezone.now()
             f = Folder.objects.get(folder_name=folder_name)
+            print f
             f.modify_time = upload_time
             f.save()
             f.file_set.create(file_name=file_name, file_loc=file_loc, file_size=file_size, file_type=file_type, upload_time=upload_time)
@@ -245,7 +259,6 @@ def user_info(req):
         return HttpResponseRedirect('/online/index/')
     else:
         return render(req, 'user_info.html', {'username': username, 'b': b})
-
 
 
 

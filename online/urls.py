@@ -1,8 +1,8 @@
-from django.conf.urls import patterns, url
+from django.conf.urls import url,include
 from online import views
 
 
-urlpatterns = patterns('',
+urlpatterns  = [
     url(r'^$', views.login, name='login'),
     url(r'^login/$', views.login, name='login'),
     url(r'^regist/$', views.regist, name='regist'),
@@ -16,4 +16,5 @@ urlpatterns = patterns('',
     url(r'^folder_info/$', views.folder_info, name='folder_info'),
     url(r'^html/$', views.html_test, name='testhtml'),
     url(r'user_info/$', views.user_info, name='user_info'),
-)
+
+]
